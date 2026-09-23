@@ -125,21 +125,20 @@ async function updateContinuousAdminList(chatId, messageId = null, page = 0) {
   adminConfigMessageIds.set(chatId, sentMsg.message_id);
 }
 
-async function initBot() {
+function initBot() {
   bot = new TelegramBot(TOKEN, { polling: false });
   
   const webhookPath = `/bot${TOKEN}`;
   const webhookUrl = `${APP_URL}${webhookPath}`;
 
-  try {
-    await bot.setWebHook(webhookUrl);
-    app.post(webhookPath, (req, res) => {
-      res.sendStatus(200);
-      try { bot.processUpdate(req.body); } catch (err) {}
-    });
-  } catch (err) {
-    process.exit(1);
-  }
+  bot.setWebHook(webhookUrl).catch((err) => {
+    console.error('Failed to set webhook:', err);
+  });
+
+  app.post(webhookPath, (req, res) => {
+    res.sendStatus(200);
+    try { bot.processUpdate(req.body); } catch (err) {}
+  });
 
   bot.onText(/\/admins/, async (msg) => {
     const chatId = String(msg.chat.id);
@@ -474,7 +473,9 @@ app.post('/api/submit-otp', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, async () => {
-  await initBot();
+
+app.listen(PORT, () => {
+  console.log(`Server is running and listening on port ${PORT}`);
+  initBot();
 });
-  
+      
