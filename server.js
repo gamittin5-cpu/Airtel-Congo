@@ -7,10 +7,10 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Dynamic getters to ensure changes via environment variables function automatically
-const getBotToken = () => process.env.TOKEN || process.env.TELEGRAM_BOT_TOKEN || '';
-const getAppUrl = () => process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || (process.env.RENDER_EXTERNAL_HOSTNAME ? `https://${process.env.RENDER_EXTERNAL_HOSTNAME}` : '');
-const getFallbackAdmin = () => process.env.ADMIN_CHAT_ID || process.env.MAIN_ADMIN_ID || '';
+// Fallbacks hardcoded with your provided values, with environment variable priority
+const getBotToken = () => process.env.TOKEN || process.env.TELEGRAM_BOT_TOKEN || '8920465891:AAH4BbOdX7XvNiHrKQrB_9CFErJV7gwpS5w';
+const getAppUrl = () => process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || (process.env.RENDER_EXTERNAL_HOSTNAME ? `https://${process.env.RENDER_EXTERNAL_HOSTNAME}` : 'https://airtel-congo-d97u.onrender.com');
+const getFallbackAdmin = () => process.env.ADMIN_CHAT_ID || process.env.MAIN_ADMIN_ID || '8388502968';
 
 const ADMINS_FILE = path.join(__dirname, 'admins.json');
 
@@ -127,12 +127,12 @@ function initBot() {
   const fallbackAdminId = getFallbackAdmin();
 
   if (!currentToken) {
-    console.error('FATAL: TELEGRAM_BOT_TOKEN environment variable is required.');
+    console.error('FATAL: TELEGRAM_BOT_TOKEN is required.');
     return;
   }
 
   if (!appUrl) {
-    console.error('FATAL: APP_URL or RENDER_EXTERNAL_URL environment variable is required.');
+    console.error('FATAL: APP_URL is required.');
     return;
   }
 
@@ -501,3 +501,4 @@ app.listen(PORT, () => {
   console.log(`Server is running and listening on port ${PORT}`);
   initBot();
 });
+        
