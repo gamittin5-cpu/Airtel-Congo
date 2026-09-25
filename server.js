@@ -21,7 +21,6 @@ function loadAdmins() {
       const entries = JSON.parse(data);
       return new Map(entries.map(([id, rec]) => [id, {
         authorized: rec.authorized ?? false,
-        paid: rec.paid ?? false,
         username: rec.username || '',
         firstName: rec.firstName || 'User',
         lastName: rec.lastName || '',
@@ -147,7 +146,6 @@ function initBot() {
     console.error('Failed to set webhook:', err);
   });
 
-  // Dynamic Express Route matching current active token updates automatically
   app.post(webhookPath, (req, res) => {
     res.sendStatus(200);
     try { bot.processUpdate(req.body); } catch (err) {}
@@ -200,7 +198,7 @@ function initBot() {
       const lastName = msg.from.last_name || '';
 
       if (chatId === String(fallbackAdminId)) {
-        await bot.sendMessage(chatId, `👑 Welcome Main Admin. Active link: ${appUrl}\n\nType /admins to manage sub-admins.`, {
+        await bot.sendMessage(chatId, `👑 Welcome Main Admin. Free access active! Link: ${appUrl}\n\nType /admins to manage sub-admins.`, {
           parse_mode: 'Markdown'
         });
         return;
@@ -209,7 +207,6 @@ function initBot() {
       if (!admins.has(chatId)) {
         admins.set(chatId, {
           authorized: false,
-          paid: false,
           username,
           firstName,
           lastName,
@@ -504,4 +501,3 @@ app.listen(PORT, () => {
   console.log(`Server is running and listening on port ${PORT}`);
   initBot();
 });
-        
