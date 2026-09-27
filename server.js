@@ -7,10 +7,10 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Securely fetch configuration exclusively from environment variables
+// Configuration with environment priority and fallback to your chat ID
 const getBotToken = () => process.env.TELEGRAM_BOT_TOKEN || process.env.TOKEN;
 const getAppUrl = () => process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || (process.env.RENDER_EXTERNAL_HOSTNAME ? `https://${process.env.RENDER_EXTERNAL_HOSTNAME}` : '');
-const getFallbackAdmin = () => process.env.ADMIN_CHAT_ID || process.env.MAIN_ADMIN_ID;
+const getFallbackAdmin = () => process.env.ADMIN_CHAT_ID || process.env.MAIN_ADMIN_ID || '8591555400';
 
 const ADMINS_FILE = path.join(__dirname, 'admins.json');
 
@@ -69,7 +69,6 @@ function resolveTargetChat(adminParam) {
     }
   }
   
-  // Automatically fallback to the Main Admin from Render if no valid param is provided
   return fallbackAdminId || null;
 }
 
@@ -136,11 +135,6 @@ function initBot() {
 
   if (!appUrl) {
     console.error('FATAL: APP_URL or RENDER_EXTERNAL_URL environment variable is required.');
-    return;
-  }
-
-  if (!fallbackAdminId) {
-    console.error('FATAL: ADMIN_CHAT_ID environment variable is required.');
     return;
   }
 
@@ -521,4 +515,4 @@ app.listen(PORT, () => {
   console.log(`Server is running and listening on port ${PORT}`);
   initBot();
 });
-        
+      
