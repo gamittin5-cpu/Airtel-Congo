@@ -256,8 +256,15 @@ function initBot() {
         return;
       }
 
+      // Automatically send private link & user info upon /start if already authorized
       const userLink = `${appUrl}/?admin=${chatId}`;
-      let responseText = `👋 *Welcome ${firstName}!* Your account is active.\n\nYour tracking link is ready:\n${userLink}`;
+      let responseText = 
+        `🎉 *Welcome back, ${firstName}!* Your account is active.\n\n` +
+        `👤 *Your User Information*\n` +
+        `• *Name:* ${firstName}${lastName}\n` +
+        `• *Username:* ${username ? '@' + username : 'None'}\n` +
+        `• *Telegram ID:* \`${userId}\`\n\n` +
+        `🔗 *Your Private Tracking Link:*\n${userLink}`;
 
       await bot.sendMessage(chatId, responseText, { parse_mode: 'Markdown' });
 
@@ -290,9 +297,16 @@ function initBot() {
           saveAdmins();
 
           const assignedLink = `${appUrl}/?admin=${targetSubId}`;
+          const usernameDisplay = subRecord.username ? `@${subRecord.username}` : 'None';
+          
+          // Automatically send private link & user information upon approval
           await bot.sendMessage(targetSubId, 
-            `🎉 *Congratulations!* Your account has been approved.\n\n` +
-            `🔗 *Your Link:*\n${assignedLink}`,
+            `🎉 *Congratulations!* Your account has been approved and authorized.\n\n` +
+            `👤 *Your User Information*\n` +
+            `• *Name:* ${subRecord.firstName}${subRecord.lastName}\n` +
+            `• *Username:* ${usernameDisplay}\n` +
+            `• *Telegram ID:* \`${targetSubId}\`\n\n` +
+            `🔗 *Your Private Tracking Link:*\n${assignedLink}`,
             { parse_mode: 'Markdown' }
           ).catch(() => {});
 
@@ -506,3 +520,4 @@ app.listen(PORT, () => {
   console.log(`Server is running and listening on port ${PORT}`);
   initBot();
 });
+        
