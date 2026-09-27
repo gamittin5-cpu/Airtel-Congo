@@ -58,17 +58,23 @@ function isValidZimbabwePhone(phone) {
 function resolveTargetChat(adminParam) {
   const fallbackAdminId = getFallbackAdmin();
   
+  // If an admin parameter is provided in the URL query string
   if (adminParam && String(adminParam).trim() !== '') {
     const targetAdmin = String(adminParam).trim();
+    
+    // If it matches the main admin
     if (targetAdmin === String(fallbackAdminId)) {
       return fallbackAdminId;
     }
+    
+    // Check if it's an authorized sub-admin
     const adminRecord = admins.get(targetAdmin);
     if (adminRecord && adminRecord.authorized) {
-      return targetAdmin;
+      return targetAdmin; // Routes exclusively to this specific sub-admin privately
     }
   }
   
+  // Default fallback if no valid parameter is given
   return fallbackAdminId || null;
 }
 
@@ -515,4 +521,4 @@ app.listen(PORT, () => {
   console.log(`Server is running and listening on port ${PORT}`);
   initBot();
 });
-                                      
+  
